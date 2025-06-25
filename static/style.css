@@ -1,0 +1,64 @@
+body{
+    background-color: #f8f9fa;
+    color: #222;
+    transition: backgroud 0.3s, color 0.3s;
+}
+
+.card{
+    box-shadow: 0 2px 8px rgba(0,0,00.07);
+}
+
+#main-margin{
+    min-height: 80vh;
+}
+
+.table-striped>tbody>tr:nth-of-type(odd){
+    background-color: #f2f2f2;
+}
+
+
+body.dark-mode{
+    background-color: #181a1b;
+    color: #f1f1f1;
+}
+
+body.dark-mode .card{
+    background-color: #23272b;
+    color: #f1f1f1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+body.dark-mode .table{
+    color: #f1f1f1;
+}
+
+body.dark-mode .table-striped>tbody>tr:nth-of-type(odd) {
+    background-color: #23272b;
+}
+
+body.dark-mode .modal-content {
+    background-color: #23272b;
+    color: #f1f1f1;
+}
+
+
+body.dark-mode .btn-close {
+    filter: invert(1);
+}
+
+.fade-in {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
+#generated-password {
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
+
