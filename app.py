@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import hashlib
+from flask import render_template
 from flask import Flask , request, jsonify, session, send_from_directory
 from cryptography.fernet import Fernet
 from werkzeug.utils import secure_filename
@@ -20,30 +21,32 @@ def get_db():
     conn.row_factory= sqlite3.Row
     return conn
 
-def get_feret():
+def get_fernet():
     if not os.path.exists(KEY_PATH):
         key= Fernet.generate_key()
         with open(KEY_PATH, 'wb') as f :
             f.write(key)
     else:
-        with open(KEY_PATH,'wb') as f:
+        with open(KEY_PATH,'rb') as f:
             key = f.read()
     return Fernet(key)
 
 
-def hash_pasword(password):
+def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def init_db():
     conn = get_db()
-    c = conn.cursor
-    c.execute(''' CREATE TABLE IF NOT EXISTS password(
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              platform TEXT NOT NULL,
-              username TEXT NOT NULL,
-              password TEXT NOT NULL,
-              )
-              ''')
+    c = conn.cursor()
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS passwords (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL
+    )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -60,7 +63,7 @@ def setup_master():
     if not password :
         return jsonify({'error' : 'Password required '}), 400
     with open(MASTER_HASH_PATH, 'w') as f :
-        f.write(hash_pasword(password))
+        f.write(hash_password(password))
     return jsonify({'message' : 'Master password set '})
 
 #--------------------login---
@@ -79,7 +82,7 @@ def login() :
     with open (MASTER_HASH_PATH, 'r') as f :
         stored_hash = f.read()
 
-    if hash_pasword(password) == stored_hash:
+    if hash_password(password) == stored_hash:
         session['authenticated'] = True
         return jsonify({'message' : 'Login Successful !'}) 
     else:
@@ -98,10 +101,10 @@ def add_password():
     username = data.get('username')
     password = data.get('password')
 
-    if not all(platform, username, password):
+    if not all([platform, username, password]):
         return jsonify({'error':'All fields required.'}), 400
     
-    f = get_feret()
+    f = get_fernet()
     encrypted_pw= f.encrypt(password.encode()).decode()
 
 
@@ -113,17 +116,17 @@ def add_password():
     return jsonify({'message':'Password Saved.'})
 
 
-@app.route('/api/password', methods=['GET'])
+@app.route('/api/passwords', methods=['GET'])
 
-def get_password():
+def get_passwords():
     
-    if not session('authenticated'):
-        return jsonify({'eror':'Unauthorized'}), 401 
+    if not session.get('authenticated'):
+        return jsonify({'error':'Unauthorized'}), 401 
     
-    f = get_feret()
+    f = get_fernet()
     conn = get_db()
     c = conn.cursor()
-    c.execute= ('SELECT * FROM password')
+    c.execute('SELECT * FROM password')
     rows = c.fetchall()
     conn.close()
 
@@ -131,43 +134,43 @@ def get_password():
     result = []
     for row in rows :
         decrypted_pw = f.decrypt(row['password'].encode()).decode()
-        result.appent({
+        result.append({
             'id' : row['id'],
             'platform' : row['platform'],
             'username' : row['username'],
             'password' : decrypted_pw
             })
-        return jsonify(result)
+    return jsonify(result)
 
 
 #------------------------DELETE PASSWORD ----
 
-@app.route('/api/passwords/<int:pw_id', method = ['DELETE'])
+@app.route('/api/passwords/<int:pw_id>', methods=['DELETE'])
+
 
 def delete_password(pw_id):
-    if not session('authenticated'):
+    if not session.get('authenticated'):
         return jsonify({'error':'Unauthorized'}), 401 
     
     conn = get_db()
     c = conn.cursor()
-    c.execute('DELETE FORM paswords WHERE id = ?', (pw_id))
+    c.execute('DELETE FROM passwords WHERE id = ?', (pw_id,))
     conn.commit()
     conn.close()
     return jsonify({'message':'Password deleted'})
 
 
 #--------------------------FRONTEND PATH---
+from flask import send_from_directory
 
-@app.route('/', defaults={'path':''})
+@app.route('/')
+def serve_index():
+    return send_from_directory('static', 'index.html')
+
 @app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('static', path)
 
-def server_frontend(path):
-
-    if path != "" and os.path.exists(os.path.join('static', path)):
-        return send_from_directory('static', path)
-    else: 
-        return send_from_directory('static', 'index.html')
-    
 if __name__ == '__main__':
     app.run(debug=True)
 
